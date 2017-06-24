@@ -1,37 +1,52 @@
-var MongoClient = require('mongodb').MongoClient
+var _ = require('lodash');
+
+var mongodb = require('mongodb')
 var fs = require('fs');
 
-const url = "mongodb://localhost:27017/shout";
-const backupFolder = "./Backup";
+var config = require('./config');
 
-var writeToErrorLogs = "";
+var Logger = require('./libs/logging').Logger;
+var logger = new Logger("./error.log")
 
-MongoClient.connect(url, (err, db) => {
-  if (!err) {
-    fs.readdirSync(backupFolder).forEach((file) => {
-      var content = fs.readFileSync(`${backupFolder}/${file}`, 'utf8');
-      var documentsStrings = content.split('\n');
-      var documents = [];
+var srcClient = mongodb.MongoClient();
+var dstClient = mongodb.MongoClient();
 
-      documentsStrings.forEach((document) => {
-        try {
-          documents.push(JSON.parse(document));
-        } catch (error) {
-          console.log(`Couldn't parse ${document}`)
-          writeToErrorLogs += `File: ${file}: ${document}\n`;
-        }
-      });
 
-      console.log(documents)
-
-      var collection = db.collection(file.split('.')[0]);
-      collection.insertMany(documents);
-    });
-
-    db.close();
-    fs.writeFileSync('errors.log', writeToErrorLogs);
+// TODO - Put the close and endlogging functions somewhere
+srcClient.connect(config.SERVER_CONSTANTS.sourceUrl, (err, srcDb) => {
+  if (err) {
+    logger.multiLog(`Couldn't connect to ${config.SERVER_CONSTANTS.sourceUrl}: ${err}`);
 
   } else {
-    console.error(err);
+    dstClient.connect(config.SERVER_CONSTANTS.destinationUrl, (err, destDb) => {
+      if (err) {
+        logger.multiLog(`Couldn't connect to ${config.SERVER_CONSTANTS.destinationUrl}: ${err}`);
+      }
+
+      else {
+        srcDb.collections((err, srcCollections) => {
+          if (err) {
+            logger.multiLog(`Couldn't fetch collections from the source server!: ${err}`);
+
+          } else {
+            srcCollections.forEach((srcCollection) => {
+              logger.multiLog(`Transfering Collection: ${srcCollection.collectionName}`);
+              var dstCollection = destDb.collection(srcCollection.collectionName);
+
+              srcCollection.find({}, (err, cursor) => {
+                if (err) {
+                  logger.multiLog(`Couldnt find documents of ${srcCollection.collectionName}:  ${err}`);
+
+                } else {
+                  cursor.toArray((err, documents) => {
+                    dstCollection.insertMany(documents);
+                  });
+                }
+              });
+            });
+          }
+        });
+      }
+    });
   }
-})
+});
