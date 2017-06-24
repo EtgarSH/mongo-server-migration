@@ -1,5 +1,3 @@
-var _ = require('lodash');
-
 var mongodb = require('mongodb')
 var fs = require('fs');
 
