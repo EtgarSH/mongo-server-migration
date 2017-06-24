@@ -19,7 +19,7 @@ class Logger {
       throw new Error("The logger isn't opened!");
     }
     console.log(msg);
-    this.textToLog += msg;
+    this.textToLog += `${msg}\n`;
   }
 
   endLogging() {
