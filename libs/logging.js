@@ -8,28 +8,17 @@ class Logger {
   */
   constructor(logFileDestination) {
     this.logFileDestination = logFileDestination;
-    this.textToLog = "";
-    this.open = true;
   }
 
   multiLog(msg) {
     // Log a message (string) to the console and to the file
-
-    if (!this.open) {
-      throw new Error("The logger isn't opened!");
-    }
     console.log(msg);
-    this.textToLog += msg;
-  }
 
-  endLogging() {
     /*
-      Saves the log file
-      You cannot usק this class instance anymore after you end the logging
+      append log data to the destination file if it's already exist,
+      otherwise create it
     */
-
-    this.open = false;
-    fs.writeFileSync(this.logFileDestination, this.textToLog);
+   fs.appendFileSync(this.logFileDestination, `${msg}\n`);
   }
 }
 
